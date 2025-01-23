@@ -1,6 +1,8 @@
 import torch
-from utils import plot_loss
 from tqdm import tqdm 
+
+from resources.utils import plot_loss
+
 
 def ce_finetune(
         model, 

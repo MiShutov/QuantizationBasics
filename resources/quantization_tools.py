@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from copy import deepcopy
-from pack_and_unpack import pack_scalar_index, unpack_scalar_index
+
+from resources.pack_and_unpack import pack_scalar_index, unpack_scalar_index
 
 
 class QLayer(nn.Module):
