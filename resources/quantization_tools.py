@@ -138,7 +138,64 @@ class Quantizer(nn.Module):
         return f"{self.__class__.__name__}(bit_width={self.bit_width}, group_type={self.group_type})"
 
 
-class QuantizedConv2d(torch.nn.Module):
+class QuantizedLayer(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    @torch.no_grad()
+    def wrap_module(self, module):
+        pass
+
+    def _save_to_state_dict(self, destination, prefix, keep_vars):
+        packed = pack_scalar_index(
+            tensor=self.int_weight.detach(), bit_width=self.bit_width
+        )[0]
+        destination[prefix + 'packed_weight'] = packed
+        destination[prefix + 'step'] = self.step.detach()
+        destination[prefix + 'offset'] = self.offset.detach()
+        if self.bias is not None:
+            destination[prefix + 'bias'] = self.bias.detach()
+
+    def _load_from_state_dict(
+        self,
+        state_dict
+    ):
+        prepared_dict = {}
+        for k in state_dict:
+            prepared_dict.update({k.split('.')[-1] : state_dict[k]})
+        
+        self.int_weight.data = unpack_scalar_index(
+            packed=prepared_dict.get('packed_weight', None),
+            tensor_shape=self.int_weight.shape,
+            tensor_dtype=self.int_weight.dtype,
+            bit_width=self.bit_width
+        )
+        self.step.data = prepared_dict.get('step', None)
+        self.offset.data = prepared_dict.get('offset', None)
+        if self.bias is not None:
+            self.bias.data = prepared_dict.get('bias', None)
+
+
+class QuantizedLinear(QuantizedLayer):
+    def __init__(self):
+        super().__init__()
+    
+    @torch.no_grad()
+    def wrap_module(self, module):
+        self.int_weight = module.weight_quantizer.get_quant(module.module.weight).to(torch.int8)
+        self.weight_shape = self.int_weight.shape
+        self.bit_width = module.weight_quantizer.bit_width
+        self.step = module.weight_quantizer.step
+        self.offset = module.weight_quantizer.offset
+        self.bias = module.module.bias
+        return deepcopy(self)
+
+    def forward(self, x):
+        w = self.int_weight * self.step - self.offset
+        return F.linear(x, w, self.bias)
+
+
+class QuantizedConv2d(QuantizedLayer):
     def __init__(self):
         super().__init__()
     
@@ -166,91 +223,3 @@ class QuantizedConv2d(torch.nn.Module):
                         groups=self.groups
                 )
 
-    def _save_to_state_dict(self, destination, prefix, keep_vars):
-        packed, tensor_shape, tensor_dtype = pack_scalar_index(
-            tensor=self.int_weight.detach(), bit_width=self.bit_width
-        )
-        destination[prefix + 'packed_weight'] = packed
-        destination[prefix + 'step'] = self.step.detach()
-        destination[prefix + 'offset'] = self.offset.detach()
-        if self.bias is not None:
-            destination[prefix + 'bias'] = self.bias.detach()
-
-    def _load_from_state_dict(
-        self,
-        state_dict,
-        prefix,
-        local_metadata,
-        strict,
-        missing_keys,
-        unexpected_keys,
-        error_msgs,
-    ):
-        prepared_dict = {}
-        for k in state_dict:
-            prepared_dict.update({k.split('.')[-1] : state_dict[k]})
-        
-        self.int_weight.data = unpack_scalar_index(
-            packed=prepared_dict.get('packed_weight', None),
-            tensor_shape=self.int_weight.shape,
-            tensor_dtype=self.int_weight.dtype,
-            bit_width=self.bit_width
-        )
-        self.step.data = prepared_dict.get('step', None)
-        self.offset.data = prepared_dict.get('offset', None)
-        if self.bias is not None:
-            self.bias.data = prepared_dict.get('bias', None)
-    
-
-class QuantizedLinear(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-    
-    @torch.no_grad()
-    def wrap_module(self, module):
-        self.int_weight = module.weight_quantizer.get_quant(module.module.weight).to(torch.int8)
-        self.weight_shape = self.int_weight.shape
-        self.bit_width = module.weight_quantizer.bit_width
-        self.step = module.weight_quantizer.step
-        self.offset = module.weight_quantizer.offset
-        self.bias = module.module.bias
-        return deepcopy(self)
-
-    def forward(self, x):
-        w = self.int_weight * self.step - self.offset
-        return F.linear(x, w, self.bias)	
-    
-    def _save_to_state_dict(self, destination, prefix, keep_vars):
-        packed, tensor_shape, tensor_dtype = pack_scalar_index(
-            tensor=self.int_weight.detach(), bit_width=self.bit_width
-        )
-        destination[prefix + 'packed_weight'] = packed
-        destination[prefix + 'step'] = self.step.detach()
-        destination[prefix + 'offset'] = self.offset.detach()
-        if self.bias is not None:
-            destination[prefix + 'bias'] = self.bias.detach()
-
-    def _load_from_state_dict(
-        self,
-        state_dict,
-        prefix,
-        local_metadata,
-        strict,
-        missing_keys,
-        unexpected_keys,
-        error_msgs,
-    ):
-        prepared_dict = {}
-        for k in state_dict:
-            prepared_dict.update({k.split('.')[-1] : state_dict[k]})
-        
-        self.int_weight.data = unpack_scalar_index(
-            packed=prepared_dict.get('packed_weight', None),
-            tensor_shape=self.int_weight.shape,
-            tensor_dtype=self.int_weight.dtype,
-            bit_width=self.bit_width
-        )
-        self.step.data = prepared_dict.get('step', None)
-        self.offset.data = prepared_dict.get('offset', None)
-        if self.bias is not None:
-            self.bias.data = prepared_dict.get('bias', None)

@@ -1,8 +1,38 @@
 import os
 import torch
+from transformers import AutoImageProcessor
+import datasets
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 from IPython.display import clear_output
+
+
+def prepare_dataset(dataset_name, model_name, cache_dir):
+   train_dataset, test_dataset = datasets.load_dataset(
+      dataset_name, cache_dir=cache_dir, split=['train[:20000]', 'test[:5000]']
+   )
+
+   image_processor = AutoImageProcessor.from_pretrained(model_name)
+   def preprocess(sample):
+      if sample['image'].mode != 'RGB':
+         sample['image'] = sample['image'].convert('RGB')
+
+      sample['image'] = image_processor(sample['image'], return_tensors="pt")['pixel_values'][0]
+      return sample
+
+   train_dataset = train_dataset.map(preprocess)
+   test_dataset = test_dataset.map(preprocess)
+
+   train_dataset.set_format(type='torch', columns=['image', 'label'])
+   test_dataset.set_format(type='torch', columns=['image', 'label'])
+
+   test_dataset.save_to_disk(os.path.join(cache_dir, 'test'))
+   train_dataset.save_to_disk(os.path.join(cache_dir, 'train'))
+
+
+def print_file_size(path_to_file):
+    file_size = os.path.getsize(path_to_file)/2**20
+    print(f'{file_size:.03f} Mb')
 
 
 def prepare_trainable_params(model, exceptions):
@@ -50,8 +80,3 @@ def plot_loss(train_losses, learning_rates=None, figsize=(6, 3)):
     plt.title('Training Loss Over Iterations')
     plt.grid()
     plt.show()
-
-
-def print_file_size(path_to_file):
-    file_size = os.path.getsize(path_to_file)/2**20
-    print(f'{file_size:.03f} Mb')
