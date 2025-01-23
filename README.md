@@ -12,5 +12,6 @@
 
 ```bash
 conda create --name quant_basics python=3.10
+conda activate quant_basics
 pip install -r requirements.txt
 ```
