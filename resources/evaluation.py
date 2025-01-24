@@ -6,22 +6,27 @@ def top_k_accuracy(outputs, labels, k=5):
     correct = (predicted == labels.view(-1, 1)).sum().item()
     return correct
 
-def eval(model, test_dataloader):
-    print('Run evaluation...')
+@torch.no_grad()
+def eval(model, test_dataloader, verbose=True):
     model.eval()
     correct_top_1 = 0
     correct_top_5 = 0
     total = 0
     
-    with torch.no_grad():  # Отключение градиентов для экономии памяти
-        for batch in tqdm(test_dataloader):
-            images = batch['image'].to(model.device)
-            labels = batch['label'].to(model.device)
+    if verbose:
+        print('Run evaluation...')
+        stream = tqdm(test_dataloader)
+    else:
+        stream = test_dataloader
 
-            outputs = model(images)
-            total += labels.size(0)
-            correct_top_1 += top_k_accuracy(outputs, labels, 1)
-            correct_top_5 += top_k_accuracy(outputs, labels, 5)
+    for batch in stream:
+        images = batch['image'].to(model.device)
+        labels = batch['label'].to(model.device)
+
+        outputs = model(images)
+        total += labels.size(0)
+        correct_top_1 += top_k_accuracy(outputs, labels, 1)
+        correct_top_5 += top_k_accuracy(outputs, labels, 5)
 
         top_1_accuracy = correct_top_1 / total
         top_5_accuracy = correct_top_5 / total

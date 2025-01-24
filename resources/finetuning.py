@@ -1,7 +1,36 @@
 import torch
 from tqdm import tqdm 
-
+from torch.utils.data import DataLoader
 from resources.utils import plot_loss
+
+
+def prepare_trainable_params(model, exceptions):
+   for param_name, param in model.named_parameters():
+      param.requires_grad = False
+
+   trainable_parameters = []
+   for param_name, param in model.named_parameters():
+      # skip exceptions:
+      for exception in exceptions:
+         if exception in param_name:
+            continue
+
+      if 'weight_quantizer.step' in param_name:
+         param.requires_grad = True
+         trainable_parameters.append(param)
+
+      elif 'weight_quantizer.offset' in param_name:
+         param.requires_grad = True
+         trainable_parameters.append(param)
+
+   return trainable_parameters
+
+
+def prepare_for_finetuning(model, train_dataset, train_batch_size, train_lr):
+    train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+    trainable_parameters = prepare_trainable_params(model, exceptions=['embedder', 'classifier'])
+    optimizer = torch.optim.Adam(trainable_parameters, lr=train_lr)
+    return train_loader, optimizer
 
 
 def ce_finetune(

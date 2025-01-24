@@ -158,7 +158,13 @@ class QuantizedLayer(torch.nn.Module):
 
     def _load_from_state_dict(
         self,
-        state_dict
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
     ):
         prepared_dict = {}
         for k in state_dict:

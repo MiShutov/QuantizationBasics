@@ -35,28 +35,6 @@ def print_file_size(path_to_file):
     print(f'{file_size:.03f} Mb')
 
 
-def prepare_trainable_params(model, exceptions):
-   for param_name, param in model.named_parameters():
-      param.requires_grad = False
-
-   trainable_parameters = []
-   for param_name, param in model.named_parameters():
-      # skip exceptions:
-      for exception in exceptions:
-         if exception in param_name:
-            continue
-
-      if 'weight_quantizer.step' in param_name:
-         param.requires_grad = True
-         trainable_parameters.append(param)
-
-      elif 'weight_quantizer.offset' in param_name:
-         param.requires_grad = True
-         trainable_parameters.append(param)
-
-   return trainable_parameters
-
-
 def plot_loss(train_losses, learning_rates=None, figsize=(6, 3)):
     clear_output(wait=True)
 
