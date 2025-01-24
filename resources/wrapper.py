@@ -1,11 +1,12 @@
 from resources.quantization_tools import *
 
+
 class Wrapper:
     def __init__(self, wrap_rule, exceptions={}):
         self.wrap_rule = wrap_rule
         self.exceptions = exceptions
 
-    def wrap_model(self, current_module, prefix=''):
+    def wrap_model(self, current_module, prefix=""):
         for module_name, module in current_module.named_children():
             full_name = f"{prefix}.{module_name}" if prefix else module_name
             if module.__class__ in self.wrap_rule:
