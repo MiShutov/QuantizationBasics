@@ -6,9 +6,9 @@ from IPython.display import clear_output
 from transformers import AutoImageProcessor
 
 
-def prepare_dataset(dataset_name, model_name, cache_dir):
+def prepare_dataset(dataset_name, model_name, cache_dir, split=["train", "test"]):
     train_dataset, test_dataset = datasets.load_dataset(
-        dataset_name, cache_dir=cache_dir, split=["train[:20000]", "test[:5000]"]
+        dataset_name, cache_dir=cache_dir, split=split
     )
 
     image_processor = AutoImageProcessor.from_pretrained(model_name)
@@ -28,8 +28,8 @@ def prepare_dataset(dataset_name, model_name, cache_dir):
     train_dataset.set_format(type="torch", columns=["image", "label"])
     test_dataset.set_format(type="torch", columns=["image", "label"])
 
-    test_dataset.save_to_disk(os.path.join(cache_dir, "test"))
     train_dataset.save_to_disk(os.path.join(cache_dir, "train"))
+    test_dataset.save_to_disk(os.path.join(cache_dir, "test"))
 
 
 def print_file_size(path_to_file):
